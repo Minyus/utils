@@ -37,7 +37,7 @@ except Exception:
     print("Failed to set up rich traceback. Try: pip install -U rich")
 ```
 
-Alternatively, to apply to all the codes you run, you may place in `sitecustomize.py` file in `site-packages` directory which can be found by running:
+Alternatively, to apply to all the codes you run, you may place the Python code in `sitecustomize.py` file in `site-packages` directory which can be found by running:
 
 ```bash
 python -c "import sys;print(sys.path)"
