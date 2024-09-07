@@ -65,11 +65,24 @@ if __name__ == "__main__":
     shutil.rmtree(uri, ignore_errors=True)
     db = lancedb.connect(uri)
     data = [
-        {"vector": [0, -1], "item": "foo", "price": 10.0},
-        {"vector": [0, 1], "item": "bar", "price": 20.0},
-        {"vector": [-1, 0], "item": "baz", "price": 30.0},
+        {"vector": [-1, 0], "item": "foo", "price": -1.0},
     ]
     table = db.create_table("my_table", data=data)
+    print(f"{table.count_rows()=}")
+
+    data = [
+        {"vector": [i / 256, 1 - i / 256], "item": f"{i:03d}", "price": i}
+        for i in range(256)
+    ]
+    table.add(data, mode="append")
+    print(f"{table.count_rows()=}")
+
+    table.create_index(
+        metric="cosine",
+        num_partitions=2,
+        num_sub_vectors=1,
+        index_cache_size=2,
+    )
     query = [0.7, 0.7]
 
     query_batch = [query for _ in range(3)]
@@ -78,7 +91,7 @@ if __name__ == "__main__":
         query_batch,
         search_kwargs={},
         query_fn=lambda x: x.metric("cosine")
-        .where("price < 25", prefilter=True)
+        .where("price > 0", prefilter=True)
         .select(["item"])
         .limit(1)
         .to_list(),
