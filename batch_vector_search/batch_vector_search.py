@@ -2,16 +2,23 @@ import shutil
 import lancedb
 import torch
 
+try:
+    from tqdm import tqdm
+except Exception:
+
+    def tqdm(*args, **kwargs):
+        return args[0]
+
 
 class SearchDataset(torch.utils.data.Dataset):
     def __init__(
         self,
-        tbl,
+        table,
         query_batch,
         search_kwargs={},
         query_fn=None,
     ):
-        self.tbl = tbl
+        self.table = table
         self.query_batch = query_batch
         self.search_kwargs = search_kwargs
         self.query_fn = query_fn
@@ -21,27 +28,30 @@ class SearchDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         query = self.query_batch[idx]
-        result = tbl.search(query, **self.search_kwargs)
+        result = table.search(query, **self.search_kwargs)
         if self.query_fn is not None:
             result = self.query_fn(result)
         return result
 
 
 def batch_search(
-    tbl,
+    table,
     query_batch,
     search_kwargs={},
     query_fn=None,
     loader_kwargs={},
+    tqdm_kwargs={},
 ):
     dataset = SearchDataset(
-        tbl,
+        table,
         query_batch,
         search_kwargs=search_kwargs,
         query_fn=query_fn,
     )
     loader_kwargs.setdefault("collate_fn", lambda x: x)
     data_loader = torch.utils.data.DataLoader(dataset, **loader_kwargs)
+    if tqdm_kwargs is not None:
+        data_loader = tqdm(data_loader, **tqdm_kwargs)
 
     out = []
     for mini_batch in data_loader:
@@ -59,12 +69,12 @@ if __name__ == "__main__":
         {"vector": [0, 1], "item": "bar", "price": 20.0},
         {"vector": [-1, 0], "item": "baz", "price": 30.0},
     ]
-    tbl = db.create_table("my_table", data=data)
+    table = db.create_table("my_table", data=data)
     query = [0.7, 0.7]
 
     query_batch = [query for _ in range(3)]
     batch_results = batch_search(
-        tbl,
+        table,
         query_batch,
         search_kwargs={},
         query_fn=lambda x: x.metric("cosine")
@@ -72,6 +82,7 @@ if __name__ == "__main__":
         .select(["item"])
         .limit(1)
         .to_list(),
-        loader_kwargs={},
+        loader_kwargs={"batch_size": 1, "num_workers": 0},
+        tqdm_kwargs={"mininterval": 1.0},
     )
     print(batch_results)
