@@ -63,6 +63,16 @@ def batch_search(
     return out
 
 
+def query_func(x):
+    return (
+        x.metric("cosine")
+        .where("price > 0", prefilter=True)
+        .select(["item"])
+        .limit(1)
+        .to_list()
+    )
+
+
 if __name__ == "__main__":
 
     uri = "/tmp/sample-lancedb"
@@ -91,21 +101,12 @@ if __name__ == "__main__":
 
     query_batch = [query for _ in range(3)]
 
-    def query_func(x):
-        return (
-            x.metric("cosine")
-            .where("price > 0", prefilter=True)
-            .select(["item"])
-            .limit(1)
-            .to_list()
-        )
-
     batch_results = batch_search(
         table,
         query_batch,
         search_kwargs={},
         query_fn=query_func,
-        loader_kwargs={"batch_size": 1, "num_workers": 0},
+        loader_kwargs={"batch_size": 1, "num_workers": 2},
         tqdm_kwargs={"mininterval": 1.0},
     )
     print(batch_results)
