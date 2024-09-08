@@ -88,6 +88,7 @@ client = weaviate.WeaviateClient(
     embedded_options=EmbeddedOptions(
         additional_env_vars={
             "ENABLE_MODULES": "backup-filesystem",
+            "LOG_LEVEL": "warning",
             "BACKUP_FILESYSTEM_PATH": "/tmp/backups",
         },
         version=weaviate_version,
