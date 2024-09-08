@@ -5,6 +5,16 @@ from weaviate.classes.query import Filter, MetadataQuery
 
 import torch
 
+import socket
+from contextlib import closing
+
+
+def check_port_used(host="127.0.0.1", port=80, timeout=0.1):
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        sock.settimeout(timeout)
+        return sock.connect_ex((host, port))
+
+
 try:
     from tqdm import tqdm
 except Exception:
@@ -20,12 +30,13 @@ def identity_func(x):
 class WeaviateSearchDataset(torch.utils.data.Dataset):
     def __init__(
         self,
-        collection,
+        collection_name,
         query_batch,
         search_kwargs={},
         query_fn=None,
     ):
-        self.collection = collection
+        self.collection_name = collection_name
+        self.collection = None
         self.query_batch = query_batch
         self.search_kwargs = search_kwargs
         self.query_fn = query_fn
@@ -34,6 +45,9 @@ class WeaviateSearchDataset(torch.utils.data.Dataset):
         return len(self.query_batch)
 
     def __getitem__(self, idx):
+        if self.collection is None:
+            client = get_client_at_open_port()
+            self.collection = get_collection(client, self.collection_name)
         query = self.query_batch[idx]
         response = self.collection.query.near_vector(
             near_vector=query, **self.search_kwargs
@@ -42,9 +56,12 @@ class WeaviateSearchDataset(torch.utils.data.Dataset):
             response = self.query_fn(response)
         return response
 
+    def __del__(self):
+        self.client.close()
+
 
 def batch_search(
-    collection,
+    collection_name,
     query_batch,
     search_kwargs={},
     query_fn=None,
@@ -52,7 +69,7 @@ def batch_search(
     tqdm_kwargs={},
 ):
     dataset = WeaviateSearchDataset(
-        collection,
+        collection_name,
         query_batch,
         search_kwargs=search_kwargs,
         query_fn=query_fn,
@@ -86,7 +103,7 @@ def show(*args, **kwargs):
     print("@@@@", *args, **kwargs)
 
 
-if __name__ == "__main__":
+def get_client(port=8079, grpc_port=50060):
     weaviate_version = "1.26.4"
 
     client = weaviate.WeaviateClient(
@@ -109,76 +126,78 @@ if __name__ == "__main__":
                 "BACKUP_FILESYSTEM_PATH": "/tmp/backups",
             },
             version=weaviate_version,
-            port=8079,
+            port=port,
+            grpc_port=grpc_port,
         )
     )
 
     client.connect()
 
-    try:
-        collection_name = "CollectionFoo"
+    return client
 
-        if client.collections.exists(collection_name):
-            collection = client.collections.get(collection_name)
-        else:
-            collection = client.collections.create(
-                name=collection_name,
-                vector_index_config=Configure.VectorIndex.hnsw(
-                    distance_metric=VectorDistances.COSINE
-                ),
-                properties=[
-                    Property(name="item", data_type=DataType.TEXT),
-                    Property(name="price", data_type=DataType.NUMBER),
-                ],
-            )
 
-            data_rows = [
-                {
-                    "vector": [i / 256, 1 - i / 256],
-                    "properties": {"item": f"{i:03d}", "price": i},
-                }
-                for i in range(256)
-            ]
+def get_client_at_open_port(port=8079, grpc_port=50060, n_try=10):
+    while check_port_used(port=port):
+        port += 1
+    while check_port_used(port=grpc_port):
+        grpc_port += 1
+    for i in range(n_try):
+        try:
+            client = get_client(port=port, grpc_port=grpc_port)
+        except Exception:
+            if i >= (n_try - 1):
+                raise
+            else:
+                show(f"{port} or {grpc_port} not available.")
+                port += 1
+                grpc_port += 1
 
-            with collection.batch.dynamic() as batch:
-                for data_row in data_rows:
-                    batch.add_object(**data_row)
+    return client
 
-        show(client.cluster.nodes(output="verbose"))
 
-        query = [0.7, 0.7]
+def get_collection(client, collection_name="CollectionFoo"):
 
-        # response = collection.query.near_vector(
-        # near_vector=query,
-        # limit=1,
-        # return_metadata=MetadataQuery(distance=True),
-        # filters=Filter.by_property("price").greater_than(0),
-        # )
-        # response_dict = response_to_dict(response, selecting_properties={"item"})
-        # show(response_dict)
-
-        query_batch = [query for _ in range(3)]
-
-        def query_func(x):
-            return response_to_dict(x, selecting_properties={"item"})
-
-        batch_results = batch_search(
-            collection,
-            query_batch,
-            search_kwargs=dict(
-                limit=1,
-                return_metadata=MetadataQuery(distance=True),
-                filters=Filter.by_property("price").greater_than(0),
+    if client.collections.exists(collection_name):
+        collection = client.collections.get(collection_name)
+    else:
+        collection = client.collections.create(
+            name=collection_name,
+            vector_index_config=Configure.VectorIndex.hnsw(
+                distance_metric=VectorDistances.COSINE
             ),
-            query_fn=query_func,
-            loader_kwargs={"batch_size": 100, "num_workers": 2},
-            tqdm_kwargs={"mininterval": 1.0},
+            properties=[
+                Property(name="item", data_type=DataType.TEXT),
+                Property(name="price", data_type=DataType.NUMBER),
+            ],
         )
-        show(batch_results)
+    return collection
 
-    except:
-        raise
-    finally:
-        show("closing client...")
-        client.close()
-        show("closed client.")
+
+def query_func(x):
+    return response_to_dict(x, selecting_properties={"item"})
+
+
+if __name__ == "__main__":
+    client = get_client_at_open_port()
+    show(client.cluster.nodes(output="verbose"))
+    client.close()
+
+    query = [0.7, 0.7]
+
+    query_batch = [query for _ in range(10000)]
+
+    collection_name = "CollectionFoo"
+
+    batch_results = batch_search(
+        collection_name,
+        query_batch,
+        search_kwargs=dict(
+            limit=1,
+            return_metadata=MetadataQuery(distance=True),
+            filters=Filter.by_property("price").greater_than(0),
+        ),
+        query_fn=query_func,
+        loader_kwargs={"batch_size": 100, "num_workers": 2},
+        tqdm_kwargs={"mininterval": 1.0},
+    )
+    show(batch_results)
