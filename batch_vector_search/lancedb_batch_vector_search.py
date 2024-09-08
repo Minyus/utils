@@ -10,7 +10,7 @@ except Exception:
         return args[0]
 
 
-class SearchDataset(torch.utils.data.Dataset):
+class LanceDBSearchDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         table,
@@ -28,7 +28,7 @@ class SearchDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         query = self.query_batch[idx]
-        result = table.search(query, **self.search_kwargs)
+        result = self.table.search(query, **self.search_kwargs)
         if self.query_fn is not None:
             result = self.query_fn(result)
         return result
@@ -42,7 +42,7 @@ def batch_search(
     loader_kwargs={},
     tqdm_kwargs={},
 ):
-    dataset = SearchDataset(
+    dataset = LanceDBSearchDataset(
         table,
         query_batch,
         search_kwargs=search_kwargs,
