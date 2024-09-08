@@ -140,6 +140,8 @@ try:
             for data_row in data_rows:
                 batch.add_object(**data_row)
 
+    show(client.cluster.nodes(output="verbose"))
+
     query = [0.7, 0.7]
 
     # response = collection.query.near_vector(
