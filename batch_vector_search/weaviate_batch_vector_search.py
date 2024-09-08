@@ -87,8 +87,20 @@ weaviate_version = "1.26.4"
 client = weaviate.WeaviateClient(
     embedded_options=EmbeddedOptions(
         additional_env_vars={
+            "ASYNC_INDEXING": "false",
+            "DISABLE_TELEMETRY": "true",
+            "DISK_USE_READONLY_PERCENTAGE": "98",
+            "DISK_USE_WARNING_PERCENTAGE": "90",
             "ENABLE_MODULES": "backup-filesystem",
+            # "LIMIT_RESOURCES": "true",
             "LOG_LEVEL": "warning",
+            "MODULES_CLIENT_TIMEOUT": "10s",
+            "PERSISTENCE_HNSW_MAX_LOG_SIZE": "500MiB",
+            "PERSISTENCE_LSM_ACCESS_STRATEGY": "mmap",
+            "PERSISTENCE_LSM_MAX_SEGMENT_SIZE": "20GiB",
+            "QUERY_SLOW_LOG_ENABLED": "true",
+            "QUERY_SLOW_LOG_THRESHOLD": "10s",
+            "REINDEX_SET_TO_ROARINGSET_AT_STARTUP": "true",
             "BACKUP_FILESYSTEM_PATH": "/tmp/backups",
         },
         version=weaviate_version,
