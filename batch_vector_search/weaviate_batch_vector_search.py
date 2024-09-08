@@ -13,6 +13,10 @@ except Exception:
         return args[0]
 
 
+def identity_func(x):
+    return x
+
+
 class WeaviateSearchDataset(torch.utils.data.Dataset):
     def __init__(
         self,
@@ -53,7 +57,7 @@ def batch_search(
         search_kwargs=search_kwargs,
         query_fn=query_fn,
     )
-    loader_kwargs.setdefault("collate_fn", lambda x: x)
+    loader_kwargs.setdefault("collate_fn", identity_func)
     data_loader = torch.utils.data.DataLoader(dataset, **loader_kwargs)
     if tqdm_kwargs is not None:
         data_loader = tqdm(data_loader, **tqdm_kwargs)
@@ -154,6 +158,10 @@ try:
     # show(response_dict)
 
     query_batch = [query for _ in range(3)]
+
+    def query_func(x):
+        return response_to_dict(x, selecting_properties={"item"})
+
     batch_results = batch_search(
         collection,
         query_batch,
@@ -162,8 +170,8 @@ try:
             return_metadata=MetadataQuery(distance=True),
             filters=Filter.by_property("price").greater_than(0),
         ),
-        query_fn=lambda x: response_to_dict(x, selecting_properties={"item"}),
-        loader_kwargs={"batch_size": 1, "num_workers": 0},
+        query_fn=query_func,
+        loader_kwargs={"batch_size": 100, "num_workers": 2},
         tqdm_kwargs={"mininterval": 1.0},
     )
     show(batch_results)

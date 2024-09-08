@@ -10,6 +10,10 @@ except Exception:
         return args[0]
 
 
+def identity_func(x):
+    return x
+
+
 class LanceDBSearchDataset(torch.utils.data.Dataset):
     def __init__(
         self,
@@ -48,7 +52,7 @@ def batch_search(
         search_kwargs=search_kwargs,
         query_fn=query_fn,
     )
-    loader_kwargs.setdefault("collate_fn", lambda x: x)
+    loader_kwargs.setdefault("collate_fn", identity_func)
     data_loader = torch.utils.data.DataLoader(dataset, **loader_kwargs)
     if tqdm_kwargs is not None:
         data_loader = tqdm(data_loader, **tqdm_kwargs)
@@ -86,15 +90,21 @@ if __name__ == "__main__":
     query = [0.7, 0.7]
 
     query_batch = [query for _ in range(3)]
+
+    def query_func(x):
+        return (
+            x.metric("cosine")
+            .where("price > 0", prefilter=True)
+            .select(["item"])
+            .limit(1)
+            .to_list()
+        )
+
     batch_results = batch_search(
         table,
         query_batch,
         search_kwargs={},
-        query_fn=lambda x: x.metric("cosine")
-        .where("price > 0", prefilter=True)
-        .select(["item"])
-        .limit(1)
-        .to_list(),
+        query_fn=query_func,
         loader_kwargs={"batch_size": 1, "num_workers": 0},
         tqdm_kwargs={"mininterval": 1.0},
     )
