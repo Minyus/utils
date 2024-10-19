@@ -53,6 +53,9 @@ def batch_search(
         query_fn=query_fn,
     )
     loader_kwargs.setdefault("collate_fn", identity_func)
+    loader_kwargs.setdefault(
+        "multiprocessing_context", "spawn" if loader_kwargs.get("num_workers") else None
+    )
     data_loader = torch.utils.data.DataLoader(dataset, **loader_kwargs)
     if tqdm_kwargs is not None:
         data_loader = tqdm(data_loader, **tqdm_kwargs)
