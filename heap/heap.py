@@ -2,8 +2,8 @@ import heapq
 
 
 class MinHeap(list):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, ls=[]):
+        super().__init__(ls)
         heapq.heapify(self)
 
     def heappush(self, x):
@@ -14,8 +14,8 @@ class MinHeap(list):
 
 
 class MaxHeap(list):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, ls=[]):
+        super().__init__(ls)
         for i in range(len(self)):
             self[i] = -self[i]
         heapq.heapify(self)
@@ -28,7 +28,6 @@ class MaxHeap(list):
 
 
 if __name__ == "__main__":
-    h = MinHeap([8, 7])
     for h in [MinHeap([8, 7]), MaxHeap([7, 8])]:
         print(h)
         h.heappush(6)
