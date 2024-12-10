@@ -36,6 +36,12 @@ class MaxHeap(list):
             return (-v[0], *v[1:])
         return -v
 
+    def __getitem__(self, i):
+        v = super().__getitem__(i)
+        if isinstance(v, tuple):
+            return (-v[0], *v[1:])
+        return -v
+
 
 if __name__ == "__main__":
     for h in [MinHeap([8, 7]), MaxHeap([7, 8])]:
@@ -48,6 +54,7 @@ if __name__ == "__main__":
         print(h)
         print(h.heappop())
         print(h)
+        print(h[0])
         print("Done")
     for h in [MinHeap([(7, 100), (8, 200)]), MaxHeap([(7, 100), (8, 200)])]:
         print(h)
@@ -59,4 +66,5 @@ if __name__ == "__main__":
         print(h)
         print(h.heappop())
         print(h)
+        print(h[0])
         print("Done")
