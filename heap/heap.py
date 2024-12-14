@@ -1,46 +1,57 @@
 import heapq
 
 
-class MinHeap(list):
-    def __init__(self, ls=[]):
-        super().__init__(ls)
-        heapq.heapify(self)
+class MinHeap:
+    def __init__(self, ls=None):
+        ls = ls or []
+        self.q = ls
+        heapq.heapify(self.q)
 
     def heappush(self, x):
-        heapq.heappush(self, x)
+        heapq.heappush(self.q, x)
 
     def heappop(self):
-        return heapq.heappop(self)
+        return heapq.heappop(self.q)
+
+    def __getitem__(self, i):
+        return self.q[i]
+
+    def __repr__(self):
+        return self.q.__repr__()
 
 
-class MaxHeap(list):
-    def __init__(self, ls=[]):
+class MaxHeap:
+    def __init__(self, ls=None):
+        ls = ls or []
         for i in range(len(ls)):
             if isinstance(ls[0], tuple):
                 ls[i] = (-ls[i][0], *ls[i][1:])
             else:
                 ls[i] = -ls[i]
-        super().__init__(ls)
-        heapq.heapify(self)
+        self.q = ls
+        heapq.heapify(self.q)
 
     def heappush(self, x):
         if isinstance(x, tuple):
             v = (-x[0], *x[1:])
         else:
             v = -x
-        heapq.heappush(self, v)
+        heapq.heappush(self.q, v)
 
     def heappop(self):
-        v = heapq.heappop(self)
+        v = heapq.heappop(self.q)
         if isinstance(v, tuple):
             return (-v[0], *v[1:])
         return -v
 
     def __getitem__(self, i):
-        v = super().__getitem__(i)
+        v = self.q[i]
         if isinstance(v, tuple):
             return (-v[0], *v[1:])
         return -v
+
+    def __repr__(self):
+        return self.q.__repr__()
 
 
 if __name__ == "__main__":
